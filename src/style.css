@@ -1,0 +1,165 @@
+:root {
+  --bg: #0d1117;
+  --panel: #161b22;
+  --line: #2a313c;
+  --ink: #e6edf3;
+  --ink-soft: #8b98a9;
+  --accent: #7c8cff;
+  --error: #f0664f;
+  --mono: 'SFMono-Regular', 'Consolas', 'Menlo', monospace;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Hiragino Sans', 'Noto Sans JP', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  line-height: 1.6;
+  height: 100vh;
+}
+
+.wrap {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 32px 20px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.head h1 {
+  font-size: 24px;
+  letter-spacing: 0.04em;
+}
+
+.sub {
+  color: var(--ink-soft);
+  margin-top: 3px;
+  font-size: 14px;
+}
+
+.panes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  margin-top: 22px;
+  flex: 1;
+  min-height: 0;
+}
+
+.pane {
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.pane-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.pane-bar label {
+  font-size: 13px;
+  color: var(--ink-soft);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pane-bar select {
+  font: inherit;
+  font-size: 13px;
+  padding: 5px 8px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--bg);
+  color: var(--ink);
+}
+
+.detected {
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+.copy {
+  font: inherit;
+  font-size: 12px;
+  padding: 5px 12px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--bg);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.copy:hover {
+  border-color: var(--accent);
+}
+
+#input,
+.output {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 16px;
+  font-family: var(--mono);
+  font-size: 14px;
+  line-height: 1.7;
+  border: none;
+  background: transparent;
+  color: var(--ink);
+  overflow: auto;
+  tab-size: 2;
+}
+
+#input {
+  resize: none;
+  width: 100%;
+}
+
+#input:focus {
+  outline: none;
+}
+
+.output {
+  white-space: pre;
+}
+
+.output code {
+  font-family: inherit;
+}
+
+.error {
+  margin-top: 14px;
+  padding: 11px 14px;
+  border-radius: 8px;
+  background: rgba(240, 102, 79, 0.12);
+  border: 1px solid rgba(240, 102, 79, 0.4);
+  color: var(--error);
+  font-size: 13px;
+}
+
+@media (max-width: 760px) {
+  body {
+    height: auto;
+  }
+  .panes {
+    grid-template-columns: 1fr;
+  }
+  #input,
+  .output {
+    min-height: 240px;
+  }
+}
