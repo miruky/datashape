@@ -4,8 +4,17 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="JSON・YAML・TOMLを相互変換し、スキーマから型定義を生成する" />
+    <meta name="theme-color" content="#f5f4f1" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#15171c" media="(prefers-color-scheme: dark)" />
     <link rel="icon" type="image/svg+xml" href="logo.svg" />
     <title>datashape | 設定フォーマット相互変換</title>
+    <script>
+      // 保存済みのテーマを描画前に当て、初期表示のちらつきを防ぐ
+      try {
+        var t = localStorage.getItem('datashape.theme');
+        if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="app"></div>
