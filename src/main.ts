@@ -65,12 +65,14 @@ app.innerHTML = `
       <section class="pane">
         <div class="pane-bar">
           <label>入力
-            <select id="from" aria-label="入力形式">
-              <option value="auto">自動判定</option>
-              <option value="json">JSON</option>
-              <option value="yaml">YAML</option>
-              <option value="toml">TOML</option>
-            </select>
+            <span class="select-wrap">
+              <select id="from" aria-label="入力形式">
+                <option value="auto">自動判定</option>
+                <option value="json">JSON</option>
+                <option value="yaml">YAML</option>
+                <option value="toml">TOML</option>
+              </select>
+            </span>
           </label>
           <span class="detected" id="detected" aria-live="polite"></span>
         </div>
@@ -79,17 +81,22 @@ app.innerHTML = `
       <section class="pane">
         <div class="pane-bar">
           <label>出力
-            <select id="to" aria-label="出力形式">
-              <option value="json">JSON</option>
-              <option value="yaml">YAML</option>
-              <option value="toml">TOML</option>
-              <option value="typescript">TypeScript 型</option>
-              <option value="go">Go 構造体</option>
-            </select>
+            <span class="select-wrap">
+              <select id="to" aria-label="出力形式">
+                <option value="json">JSON</option>
+                <option value="yaml">YAML</option>
+                <option value="toml">TOML</option>
+                <option value="typescript">TypeScript 型</option>
+                <option value="go">Go 構造体</option>
+              </select>
+            </span>
           </label>
-          <button type="button" id="copy" class="copy" aria-label="出力をコピー">
-            ${COPY_ICON}<span id="copy-label">コピー</span>
-          </button>
+          <div class="bar-right">
+            <span class="count" id="count"></span>
+            <button type="button" id="copy" class="copy" aria-label="出力をコピー">
+              ${COPY_ICON}<span id="copy-label">コピー</span>
+            </button>
+          </div>
         </div>
         <pre class="output" id="output" aria-live="polite"><code></code></pre>
       </section>
@@ -112,6 +119,7 @@ const errorEl = app.querySelector<HTMLElement>('#error')!;
 const detectedEl = app.querySelector<HTMLElement>('#detected')!;
 const copyBtn = app.querySelector<HTMLButtonElement>('#copy')!;
 const copyLabel = app.querySelector<HTMLSpanElement>('#copy-label')!;
+const countEl = app.querySelector<HTMLSpanElement>('#count')!;
 const themeBtn = app.querySelector<HTMLButtonElement>('#theme')!;
 
 input.value = SAMPLE;
@@ -145,6 +153,7 @@ function render(): void {
   const from = resolveFrom();
   if (input.value.trim() === '') {
     outputCode.textContent = '';
+    countEl.textContent = '';
     errorEl.hidden = true;
     return;
   }
@@ -162,7 +171,9 @@ function render(): void {
 
   const target = toSel.value as Target;
   try {
-    outputCode.textContent = produce(target, value);
+    const out = produce(target, value);
+    outputCode.textContent = out;
+    countEl.textContent = out ? `${out.split('\n').length} 行` : '';
     errorEl.hidden = true;
   } catch (error) {
     showError(error instanceof ConvertError ? error.message : String(error));
@@ -186,6 +197,7 @@ function showError(message: string): void {
   errorEl.textContent = message;
   errorEl.hidden = false;
   outputCode.textContent = '';
+  countEl.textContent = '';
 }
 
 copyBtn.addEventListener('click', async () => {
