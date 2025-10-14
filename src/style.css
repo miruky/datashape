@@ -450,6 +450,22 @@ body {
   animation-delay: 0.08s;
 }
 
+/* 形式を切り替えたとき、出力をやわらかく差し替える */
+@keyframes out-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.output.is-updated code {
+  animation: out-in 0.34s var(--ease);
+}
+
 /* ── レスポンシブ ── */
 
 @media (max-width: 760px) {
