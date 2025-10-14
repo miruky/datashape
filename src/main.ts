@@ -102,6 +102,20 @@ app.innerHTML = `
       </section>
     </div>
 
+    <div class="options" id="options">
+      <label class="opt">インデント
+        <span class="select-wrap">
+          <select id="indent" aria-label="インデント幅">
+            <option value="2">2</option>
+            <option value="4">4</option>
+          </select>
+        </span>
+      </label>
+      <label class="opt"><input type="checkbox" id="sort" /> キーを並べ替え</label>
+      <label class="opt"><input type="checkbox" id="minify" /> JSONを最小化</label>
+      <button type="button" id="download" class="opt-btn">ダウンロード</button>
+    </div>
+
     <p class="error" id="error" role="alert" hidden></p>
   </main>
 
@@ -122,8 +136,57 @@ const copyBtn = app.querySelector<HTMLButtonElement>('#copy')!;
 const copyLabel = app.querySelector<HTMLSpanElement>('#copy-label')!;
 const countEl = app.querySelector<HTMLSpanElement>('#count')!;
 const themeBtn = app.querySelector<HTMLButtonElement>('#theme')!;
+const indentSel = app.querySelector<HTMLSelectElement>('#indent')!;
+const sortChk = app.querySelector<HTMLInputElement>('#sort')!;
+const minifyChk = app.querySelector<HTMLInputElement>('#minify')!;
+const downloadBtn = app.querySelector<HTMLButtonElement>('#download')!;
+
+const EXT: Record<Target, string> = {
+  json: 'json',
+  yaml: 'yaml',
+  toml: 'toml',
+  typescript: 'ts',
+  go: 'go',
+};
+const SESSION_KEY = 'datashape.session';
+
+// 入力と設定をlocalStorageに保存・復元する。使えない環境では既定値で動く。
+function restoreSession(): void {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+    if (!raw) return;
+    const s = JSON.parse(raw) as Record<string, unknown>;
+    if (typeof s.input === 'string') input.value = s.input;
+    if (typeof s.from === 'string') fromSel.value = s.from;
+    if (typeof s.to === 'string') toSel.value = s.to;
+    if (typeof s.indent === 'string') indentSel.value = s.indent;
+    sortChk.checked = s.sort === true;
+    minifyChk.checked = s.minify === true;
+  } catch {
+    // 壊れた保存値は無視する
+  }
+}
+
+function saveSession(): void {
+  try {
+    localStorage.setItem(
+      SESSION_KEY,
+      JSON.stringify({
+        input: input.value,
+        from: fromSel.value,
+        to: toSel.value,
+        indent: indentSel.value,
+        sort: sortChk.checked,
+        minify: minifyChk.checked,
+      }),
+    );
+  } catch {
+    // 保存できなくても動作には影響しない
+  }
+}
 
 input.value = SAMPLE;
+restoreSession();
 
 // ── テーマ切替(自動 → ライト → ダークの循環)──
 let theme = loadTheme();
@@ -159,6 +222,8 @@ function flashOutput(): void {
 }
 
 function render(animate = false): void {
+  saveSession();
+  updateOptionAvailability();
   const from = resolveFrom();
   if (input.value.trim() === '') {
     outputCode.textContent = '';
@@ -195,12 +260,25 @@ function produce(target: Target, value: unknown): string {
     case 'json':
     case 'yaml':
     case 'toml':
-      return stringify(target, value);
+      return stringify(target, value, {
+        indent: Number(indentSel.value),
+        sortKeys: sortChk.checked,
+        minify: minifyChk.checked,
+      });
     case 'typescript':
       return toTypeScript(infer(value));
     case 'go':
       return toGo(infer(value));
   }
+}
+
+// 出力形式に応じて、効かないオプションを無効化する
+function updateOptionAvailability(): void {
+  const t = toSel.value as Target;
+  const isData = t === 'json' || t === 'yaml' || t === 'toml';
+  sortChk.disabled = !isData;
+  minifyChk.disabled = t !== 'json';
+  indentSel.disabled = !(t === 'json' || t === 'yaml') || (t === 'json' && minifyChk.checked);
 }
 
 function showError(message: string): void {
@@ -227,7 +305,24 @@ copyBtn.addEventListener('click', async () => {
   }, 1400);
 });
 
+downloadBtn.addEventListener('click', () => {
+  const text = outputCode.textContent ?? '';
+  if (!text) return;
+  const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `datashape.${EXT[toSel.value as Target]}`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+});
+
 input.addEventListener('input', () => render(false));
 fromSel.addEventListener('change', () => render(true));
 toSel.addEventListener('change', () => render(true));
+indentSel.addEventListener('change', () => render(true));
+sortChk.addEventListener('change', () => render(true));
+minifyChk.addEventListener('change', () => render(true));
 render(false);
