@@ -313,7 +313,7 @@ body {
 .count {
   font-family: var(--mono);
   font-size: 11.5px;
-  color: var(--ink-faint);
+  color: var(--ink-soft);
   white-space: nowrap;
 }
 
@@ -372,6 +372,12 @@ body {
 
 #input:focus {
   outline: none;
+}
+
+/* キーボードでの入力フォーカスははっきり示す(枠内に収めてはみ出させない) */
+#input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
 }
 
 #input::placeholder {
