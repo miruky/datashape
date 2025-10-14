@@ -29,6 +29,31 @@ describe('convert は形式をまたいで内容を保つ', () => {
   });
 });
 
+describe('stringify オプション', () => {
+  it('インデント幅を変えられる', () => {
+    expect(stringify('json', { a: 1 }, { indent: 4 })).toBe('{\n    "a": 1\n}\n');
+  });
+
+  it('JSONを最小化できる', () => {
+    expect(stringify('json', { a: 1, b: [2, 3] }, { minify: true })).toBe('{"a":1,"b":[2,3]}\n');
+  });
+
+  it('キーを再帰的に並べ替える', () => {
+    const out = stringify('json', { b: 1, a: { d: 2, c: 3 } }, { sortKeys: true });
+    expect(out).toBe('{\n  "a": {\n    "c": 3,\n    "d": 2\n  },\n  "b": 1\n}\n');
+  });
+
+  it('並べ替えても配列の順序は保つ', () => {
+    expect(stringify('json', { x: [3, 1, 2] }, { sortKeys: true })).toBe(
+      '{\n  "x": [\n    3,\n    1,\n    2\n  ]\n}\n',
+    );
+  });
+
+  it('YAMLのインデントにも効く', () => {
+    expect(stringify('yaml', { a: { b: 1 } }, { indent: 4 })).toBe('a:\n    b: 1\n');
+  });
+});
+
 describe('異常系', () => {
   it('壊れたJSONはConvertError', () => {
     expect(() => parse('json', '{ bad')).toThrow(ConvertError);
