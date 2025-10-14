@@ -114,6 +114,7 @@ app.innerHTML = `
 const fromSel = app.querySelector<HTMLSelectElement>('#from')!;
 const toSel = app.querySelector<HTMLSelectElement>('#to')!;
 const input = app.querySelector<HTMLTextAreaElement>('#input')!;
+const outputEl = app.querySelector<HTMLElement>('#output')!;
 const outputCode = app.querySelector<HTMLElement>('#output code')!;
 const errorEl = app.querySelector<HTMLElement>('#error')!;
 const detectedEl = app.querySelector<HTMLElement>('#detected')!;
@@ -149,7 +150,15 @@ function resolveFrom(): Format | null {
   return choice as Format;
 }
 
-function render(): void {
+// 出力の差し替えを知らせる。形式の切替など離散的な操作のときだけ呼び、
+// 入力タイプ中の連続更新では動かさない(チラつき防止)。
+function flashOutput(): void {
+  outputEl.classList.remove('is-updated');
+  void outputEl.offsetWidth;
+  outputEl.classList.add('is-updated');
+}
+
+function render(animate = false): void {
   const from = resolveFrom();
   if (input.value.trim() === '') {
     outputCode.textContent = '';
@@ -175,6 +184,7 @@ function render(): void {
     outputCode.textContent = out;
     countEl.textContent = out ? `${out.split('\n').length} 行` : '';
     errorEl.hidden = true;
+    if (animate) flashOutput();
   } catch (error) {
     showError(error instanceof ConvertError ? error.message : String(error));
   }
@@ -217,7 +227,7 @@ copyBtn.addEventListener('click', async () => {
   }, 1400);
 });
 
-input.addEventListener('input', render);
-fromSel.addEventListener('change', render);
-toSel.addEventListener('change', render);
-render();
+input.addEventListener('input', () => render(false));
+fromSel.addEventListener('change', () => render(true));
+toSel.addEventListener('change', () => render(true));
+render(false);
