@@ -69,3 +69,12 @@ export function guessFormat(text: string): Format | null {
 export function convert(from: Format, to: Format, text: string): string {
   return stringify(to, parse(from, text));
 }
+
+// ファイル名の拡張子から形式を推測する。ドラッグ&ドロップで読み込んだファイルに使う。
+export function extToFormat(filename: string): Format | null {
+  const ext = filename.toLowerCase().split('.').pop() ?? '';
+  if (ext === 'json') return 'json';
+  if (ext === 'yaml' || ext === 'yml') return 'yaml';
+  if (ext === 'toml') return 'toml';
+  return null;
+}
