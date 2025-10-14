@@ -22,17 +22,37 @@ export function parse(format: Format, text: string): unknown {
   }
 }
 
-export function stringify(format: Format, value: unknown): string {
+export interface StringifyOptions {
+  indent?: number; // JSON・YAMLのインデント幅(既定2)
+  sortKeys?: boolean; // オブジェクトのキーを再帰的に昇順へ
+  minify?: boolean; // JSONを1行に詰める(indentより優先)
+}
+
+// オブジェクトのキーを再帰的に並べ替えた新しい値を返す。配列は順序を保つ。
+function sortDeep(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(sortDeep);
+  if (value && typeof value === 'object') {
+    const entries = Object.entries(value as Record<string, unknown>).sort(([a], [b]) =>
+      a < b ? -1 : a > b ? 1 : 0,
+    );
+    return Object.fromEntries(entries.map(([k, v]) => [k, sortDeep(v)]));
+  }
+  return value;
+}
+
+export function stringify(format: Format, value: unknown, options: StringifyOptions = {}): string {
+  const v = options.sortKeys ? sortDeep(value) : value;
+  const indent = options.indent ?? 2;
   switch (format) {
     case 'json':
-      return JSON.stringify(value, null, 2) + '\n';
+      return (options.minify ? JSON.stringify(v) : JSON.stringify(v, null, indent)) + '\n';
     case 'yaml':
-      return yamlDump(value, { indent: 2, lineWidth: 100, noRefs: true });
+      return yamlDump(v, { indent, lineWidth: 100, noRefs: true });
     case 'toml':
-      if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+      if (v === null || typeof v !== 'object' || Array.isArray(v)) {
         throw new ConvertError('TOMLのトップレベルはオブジェクトである必要があります');
       }
-      return tomlStringify(value as Record<string, unknown>);
+      return tomlStringify(v as Record<string, unknown>);
   }
 }
 
