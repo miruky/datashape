@@ -117,6 +117,7 @@ app.innerHTML = `
     </div>
 
     <p class="error" id="error" role="alert" hidden></p>
+    <span id="status" class="sr-only" role="status" aria-live="polite"></span>
   </main>
 
   <footer class="site-footer">
@@ -140,6 +141,7 @@ const indentSel = app.querySelector<HTMLSelectElement>('#indent')!;
 const sortChk = app.querySelector<HTMLInputElement>('#sort')!;
 const minifyChk = app.querySelector<HTMLInputElement>('#minify')!;
 const downloadBtn = app.querySelector<HTMLButtonElement>('#download')!;
+const statusEl = app.querySelector<HTMLSpanElement>('#status')!;
 
 const EXT: Record<Target, string> = {
   json: 'json',
@@ -224,13 +226,14 @@ function flashOutput(): void {
 function render(animate = false): void {
   saveSession();
   updateOptionAvailability();
-  const from = resolveFrom();
   if (input.value.trim() === '') {
     outputCode.textContent = '';
     countEl.textContent = '';
+    detectedEl.textContent = '';
     errorEl.hidden = true;
     return;
   }
+  const from = resolveFrom();
   if (!from) {
     showError('入力の形式を判定できませんでした。左上で形式を選んでください。');
     return;
@@ -298,9 +301,11 @@ copyBtn.addEventListener('click', async () => {
     message = 'コピーできません';
   }
   copyLabel.textContent = message;
+  statusEl.textContent = `出力を${message}`;
   copyBtn.classList.add('done');
   window.setTimeout(() => {
     copyLabel.textContent = 'コピー';
+    statusEl.textContent = '';
     copyBtn.classList.remove('done');
   }, 1400);
 });
@@ -317,6 +322,7 @@ downloadBtn.addEventListener('click', () => {
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
+  statusEl.textContent = `${a.download} をダウンロードしました`;
 });
 
 input.addEventListener('input', () => render(false));
