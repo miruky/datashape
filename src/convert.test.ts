@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { convert, ConvertError, guessFormat, parse, stringify } from './convert';
+import { convert, ConvertError, extToFormat, guessFormat, parse, stringify } from './convert';
 
 const SAMPLE = { name: 'miruky', count: 3, tags: ['a', 'b'], nested: { ok: true } };
 
@@ -78,5 +78,21 @@ describe('guessFormat', () => {
   });
   it('空はnull', () => {
     expect(guessFormat('   ')).toBeNull();
+  });
+});
+
+describe('extToFormat', () => {
+  it('拡張子から形式を判定する', () => {
+    expect(extToFormat('config.json')).toBe('json');
+    expect(extToFormat('data.yaml')).toBe('yaml');
+    expect(extToFormat('data.yml')).toBe('yaml');
+    expect(extToFormat('Cargo.toml')).toBe('toml');
+  });
+  it('大文字や複数ドットでも判定する', () => {
+    expect(extToFormat('A.B.JSON')).toBe('json');
+  });
+  it('未知の拡張子はnull', () => {
+    expect(extToFormat('notes.txt')).toBeNull();
+    expect(extToFormat('noext')).toBeNull();
   });
 });
