@@ -221,14 +221,73 @@ body {
 /* ── 作業領域(機能上必要な枠)── */
 
 .workspace {
+  position: relative;
   margin-top: 40px;
   display: grid;
   grid-template-columns: 1fr 1fr;
   border: 1px solid var(--rule-strong);
   border-radius: 14px;
-  overflow: hidden;
   background: var(--surface);
   min-height: clamp(360px, 56vh, 620px);
+}
+
+/* 角丸を保ちつつ、中央の入れ替えボタンを枠外へはみ出させたいので overflow は clip。 */
+.pane {
+  overflow: hidden;
+}
+.pane:first-child {
+  border-radius: 14px 0 0 14px;
+}
+.pane:last-child {
+  border-radius: 0 14px 14px 0;
+}
+
+/* ── 入力⇄出力の入れ替えボタン(中央の罫線上)── */
+
+.swap {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  color: var(--ink-soft);
+  background: var(--bg);
+  border: 1px solid var(--rule-strong);
+  border-radius: 999px;
+  cursor: pointer;
+  transition:
+    color 0.18s var(--ease),
+    border-color 0.18s var(--ease),
+    transform 0.25s var(--ease);
+}
+
+.swap svg {
+  width: 17px;
+  height: 17px;
+}
+
+.swap:hover:not(:disabled) {
+  color: var(--accent-strong);
+  border-color: var(--accent);
+  transform: translate(-50%, -50%) rotate(180deg);
+}
+
+.swap:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+/* ファイルのドラッグ中、入力ペインを示す */
+.pane.is-drop {
+  background: var(--accent-tint);
+  outline: 2px dashed var(--accent);
+  outline-offset: -6px;
 }
 
 .pane {
@@ -414,6 +473,12 @@ body {
   gap: 8px;
 }
 
+.opt-sep {
+  width: 1px;
+  height: 18px;
+  background: var(--rule-strong);
+}
+
 .opt:has(:disabled) {
   opacity: 0.4;
 }
@@ -531,9 +596,24 @@ body {
     grid-template-columns: 1fr;
     min-height: 0;
   }
+  .pane:first-child {
+    border-radius: 14px 14px 0 0;
+  }
+  .pane:last-child {
+    border-radius: 0 0 14px 14px;
+  }
   .pane + .pane {
     border-left: none;
     border-top: 1px solid var(--rule);
+  }
+  /* 縦積みでは中央に置くと本文に重なるので右端の中ほどへ寄せる */
+  .swap {
+    left: auto;
+    right: 14px;
+    transform: translateY(-50%);
+  }
+  .swap:hover:not(:disabled) {
+    transform: translateY(-50%) rotate(180deg);
   }
   #input,
   .output {
