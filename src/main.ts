@@ -1,6 +1,6 @@
 import './style.css';
 import { toGo, toTypeScript } from './codegen';
-import { ConvertError, guessFormat, parse, stringify, type Format } from './convert';
+import { ConvertError, extToFormat, guessFormat, parse, stringify, type Format } from './convert';
 import { infer } from './schema';
 import { applyTheme, loadTheme, nextTheme, THEME_LABEL, type ThemeMode } from './theme';
 
@@ -25,6 +25,11 @@ const COPY_ICON = `
 <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round">
   <rect x="9" y="9" width="11" height="11" rx="2"/>
   <path d="M5 15V5a2 2 0 0 1 2-2h8" stroke-linecap="round"/>
+</svg>`;
+
+const SWAP_ICON = `
+<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M7 8h11l-3.2-3.2M17 16H6l3.2 3.2"/>
 </svg>`;
 
 const THEME_ICON: Record<ThemeMode, string> = {
@@ -100,9 +105,15 @@ app.innerHTML = `
         </div>
         <pre class="output" id="output" aria-live="polite"><code></code></pre>
       </section>
+      <button type="button" id="swap" class="swap" aria-label="入力と出力を入れ替える" title="入力と出力を入れ替える">
+        ${SWAP_ICON}
+      </button>
     </div>
 
     <div class="options" id="options">
+      <button type="button" id="sample" class="opt-btn">サンプル</button>
+      <button type="button" id="clear" class="opt-btn">クリア</button>
+      <span class="opt-sep" aria-hidden="true"></span>
       <label class="opt">インデント
         <span class="select-wrap">
           <select id="indent" aria-label="インデント幅">
@@ -142,6 +153,13 @@ const sortChk = app.querySelector<HTMLInputElement>('#sort')!;
 const minifyChk = app.querySelector<HTMLInputElement>('#minify')!;
 const downloadBtn = app.querySelector<HTMLButtonElement>('#download')!;
 const statusEl = app.querySelector<HTMLSpanElement>('#status')!;
+const swapBtn = app.querySelector<HTMLButtonElement>('#swap')!;
+const sampleBtn = app.querySelector<HTMLButtonElement>('#sample')!;
+const clearBtn = app.querySelector<HTMLButtonElement>('#clear')!;
+const inputPane = input.closest<HTMLElement>('.pane')!;
+
+const DATA_TARGETS: Target[] = ['json', 'yaml', 'toml'];
+const isDataTarget = (t: Target): boolean => DATA_TARGETS.includes(t);
 
 const EXT: Record<Target, string> = {
   json: 'json',
@@ -231,6 +249,7 @@ function render(animate = false): void {
     countEl.textContent = '';
     detectedEl.textContent = '';
     errorEl.hidden = true;
+    swapBtn.disabled = true;
     return;
   }
   const from = resolveFrom();
@@ -250,12 +269,22 @@ function render(animate = false): void {
   try {
     const out = produce(target, value);
     outputCode.textContent = out;
-    countEl.textContent = out ? `${out.split('\n').length} 行` : '';
+    countEl.textContent = out
+      ? `${out.split('\n').length} 行 · ${formatBytes(byteLength(out))}`
+      : '';
     errorEl.hidden = true;
+    swapBtn.disabled = !isDataTarget(target);
     if (animate) flashOutput();
   } catch (error) {
     showError(error instanceof ConvertError ? error.message : String(error));
   }
+}
+
+const encoder = new TextEncoder();
+const byteLength = (text: string): number => encoder.encode(text).length;
+
+function formatBytes(n: number): string {
+  return n < 1024 ? `${n} B` : `${(n / 1024).toFixed(1)} KB`;
 }
 
 function produce(target: Target, value: unknown): string {
@@ -289,6 +318,7 @@ function showError(message: string): void {
   errorEl.hidden = false;
   outputCode.textContent = '';
   countEl.textContent = '';
+  swapBtn.disabled = true;
 }
 
 copyBtn.addEventListener('click', async () => {
@@ -323,6 +353,57 @@ downloadBtn.addEventListener('click', () => {
   a.remove();
   URL.revokeObjectURL(url);
   statusEl.textContent = `${a.download} をダウンロードしました`;
+});
+
+// 入力と出力を入れ替える。出力がデータ形式のときだけ意味があるので、
+// 現在の出力を入力へ移し、変換の向きを反転する。
+swapBtn.addEventListener('click', () => {
+  const out = outputCode.textContent ?? '';
+  const target = toSel.value as Target;
+  if (!out || !isDataTarget(target)) return;
+  const prevFrom = fromSel.value;
+  input.value = out;
+  fromSel.value = target;
+  toSel.value = isDataTarget(prevFrom as Target) ? prevFrom : 'json';
+  render(true);
+  statusEl.textContent = '入力と出力を入れ替えました';
+});
+
+sampleBtn.addEventListener('click', () => {
+  input.value = SAMPLE;
+  fromSel.value = 'auto';
+  render(true);
+  input.focus();
+});
+
+clearBtn.addEventListener('click', () => {
+  input.value = '';
+  render(true);
+  input.focus();
+});
+
+// ファイルをドラッグ&ドロップして読み込む。拡張子から形式も合わせる。
+inputPane.addEventListener('dragover', (event) => {
+  event.preventDefault();
+  inputPane.classList.add('is-drop');
+});
+inputPane.addEventListener('dragleave', (event) => {
+  if (event.target === inputPane || !inputPane.contains(event.relatedTarget as Node)) {
+    inputPane.classList.remove('is-drop');
+  }
+});
+inputPane.addEventListener('drop', (event) => {
+  event.preventDefault();
+  inputPane.classList.remove('is-drop');
+  const file = event.dataTransfer?.files?.[0];
+  if (!file) return;
+  void file.text().then((text) => {
+    input.value = text;
+    const guessed = extToFormat(file.name);
+    fromSel.value = guessed ?? 'auto';
+    render(true);
+    statusEl.textContent = `${file.name} を読み込みました`;
+  });
 });
 
 input.addEventListener('input', () => render(false));
