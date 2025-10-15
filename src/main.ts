@@ -1,10 +1,11 @@
 import './style.css';
-import { toGo, toTypeScript } from './codegen';
+import { toGo, toJSONSchema, toPython, toTypeScript } from './codegen';
 import { ConvertError, extToFormat, guessFormat, parse, stringify, type Format } from './convert';
 import { infer } from './schema';
+import { decodeState, encodeState } from './share';
 import { applyTheme, loadTheme, nextTheme, THEME_LABEL, type ThemeMode } from './theme';
 
-type Target = Format | 'typescript' | 'go';
+type Target = Format | 'typescript' | 'go' | 'jsonschema' | 'python';
 
 const SAMPLE = `{
   "name": "miruky",
@@ -93,6 +94,8 @@ app.innerHTML = `
                 <option value="toml">TOML</option>
                 <option value="typescript">TypeScript 型</option>
                 <option value="go">Go 構造体</option>
+                <option value="python">Python dataclass</option>
+                <option value="jsonschema">JSON Schema</option>
               </select>
             </span>
           </label>
@@ -124,6 +127,7 @@ app.innerHTML = `
       </label>
       <label class="opt"><input type="checkbox" id="sort" /> キーを並べ替え</label>
       <label class="opt"><input type="checkbox" id="minify" /> JSONを最小化</label>
+      <button type="button" id="share" class="opt-btn">共有リンク</button>
       <button type="button" id="download" class="opt-btn">ダウンロード</button>
     </div>
 
@@ -156,6 +160,7 @@ const statusEl = app.querySelector<HTMLSpanElement>('#status')!;
 const swapBtn = app.querySelector<HTMLButtonElement>('#swap')!;
 const sampleBtn = app.querySelector<HTMLButtonElement>('#sample')!;
 const clearBtn = app.querySelector<HTMLButtonElement>('#clear')!;
+const shareBtn = app.querySelector<HTMLButtonElement>('#share')!;
 const inputPane = input.closest<HTMLElement>('.pane')!;
 
 const DATA_TARGETS: Target[] = ['json', 'yaml', 'toml'];
@@ -167,21 +172,45 @@ const EXT: Record<Target, string> = {
   toml: 'toml',
   typescript: 'ts',
   go: 'go',
+  python: 'py',
+  jsonschema: 'schema.json',
 };
 const SESSION_KEY = 'datashape.session';
+
+interface AppState {
+  input?: string;
+  from?: string;
+  to?: string;
+  indent?: string;
+  sort?: boolean;
+  minify?: boolean;
+}
+
+function currentState(): Required<AppState> {
+  return {
+    input: input.value,
+    from: fromSel.value,
+    to: toSel.value,
+    indent: indentSel.value,
+    sort: sortChk.checked,
+    minify: minifyChk.checked,
+  };
+}
+
+function applyState(s: AppState): void {
+  if (typeof s.input === 'string') input.value = s.input;
+  if (typeof s.from === 'string') fromSel.value = s.from;
+  if (typeof s.to === 'string') toSel.value = s.to;
+  if (typeof s.indent === 'string') indentSel.value = s.indent;
+  if (typeof s.sort === 'boolean') sortChk.checked = s.sort;
+  if (typeof s.minify === 'boolean') minifyChk.checked = s.minify;
+}
 
 // 入力と設定をlocalStorageに保存・復元する。使えない環境では既定値で動く。
 function restoreSession(): void {
   try {
     const raw = localStorage.getItem(SESSION_KEY);
-    if (!raw) return;
-    const s = JSON.parse(raw) as Record<string, unknown>;
-    if (typeof s.input === 'string') input.value = s.input;
-    if (typeof s.from === 'string') fromSel.value = s.from;
-    if (typeof s.to === 'string') toSel.value = s.to;
-    if (typeof s.indent === 'string') indentSel.value = s.indent;
-    sortChk.checked = s.sort === true;
-    minifyChk.checked = s.minify === true;
+    if (raw) applyState(JSON.parse(raw) as AppState);
   } catch {
     // 壊れた保存値は無視する
   }
@@ -189,24 +218,28 @@ function restoreSession(): void {
 
 function saveSession(): void {
   try {
-    localStorage.setItem(
-      SESSION_KEY,
-      JSON.stringify({
-        input: input.value,
-        from: fromSel.value,
-        to: toSel.value,
-        indent: indentSel.value,
-        sort: sortChk.checked,
-        minify: minifyChk.checked,
-      }),
-    );
+    localStorage.setItem(SESSION_KEY, JSON.stringify(currentState()));
   } catch {
     // 保存できなくても動作には影響しない
   }
 }
 
+// URLハッシュに共有状態(#s=...)があればそれを優先して読み込む。
+function applyShared(): boolean {
+  const match = /[#&]s=([^&]+)/.exec(location.hash);
+  const encoded = match?.[1];
+  if (!encoded) return false;
+  try {
+    applyState(decodeState<AppState>(decodeURIComponent(encoded)));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 input.value = SAMPLE;
 restoreSession();
+applyShared();
 
 // ── テーマ切替(自動 → ライト → ダークの循環)──
 let theme = loadTheme();
@@ -301,6 +334,10 @@ function produce(target: Target, value: unknown): string {
       return toTypeScript(infer(value));
     case 'go':
       return toGo(infer(value));
+    case 'python':
+      return toPython(infer(value));
+    case 'jsonschema':
+      return toJSONSchema(infer(value));
   }
 }
 
@@ -367,6 +404,23 @@ swapBtn.addEventListener('click', () => {
   toSel.value = isDataTarget(prevFrom as Target) ? prevFrom : 'json';
   render(true);
   statusEl.textContent = '入力と出力を入れ替えました';
+});
+
+shareBtn.addEventListener('click', async () => {
+  location.hash = `s=${encodeURIComponent(encodeState(currentState()))}`;
+  let message = '共有リンクをコピーしました';
+  try {
+    await navigator.clipboard.writeText(location.href);
+  } catch {
+    message = 'URLを更新しました';
+  }
+  const original = shareBtn.textContent ?? '共有リンク';
+  shareBtn.textContent = 'コピーしました';
+  statusEl.textContent = message;
+  window.setTimeout(() => {
+    shareBtn.textContent = original;
+    statusEl.textContent = '';
+  }, 1400);
 });
 
 sampleBtn.addEventListener('click', () => {
